@@ -38,87 +38,87 @@ function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: st
     // Try different patterns for model and vendor
     const patterns = [
       // Samsung patterns
-      /SM-[A-Z0-9]+/,
-      /SM-[A-Z][0-9]+/,
-      /SM-[A-Z][0-9][A-Z]/,
-      /SM-[A-Z][0-9][A-Z][0-9]/,
+      { pattern: /SM-[A-Z0-9]+/, vendor: "Samsung" },
+      { pattern: /SM-[A-Z][0-9]+/, vendor: "Samsung" },
+      { pattern: /SM-[A-Z][0-9][A-Z]/, vendor: "Samsung" },
+      { pattern: /SM-[A-Z][0-9][A-Z][0-9]/, vendor: "Samsung" },
       // Xiaomi patterns
-      /MI\s[A-Z0-9]+/,
-      /Redmi\s[A-Z0-9]+/,
-      /POCO\s[A-Z0-9]+/,
-      /M[0-9]{4}[A-Z0-9]+/,
+      { pattern: /MI\s[A-Z0-9]+/, vendor: "Xiaomi" },
+      { pattern: /Redmi\s[A-Z0-9]+/, vendor: "Xiaomi" },
+      { pattern: /POCO\s[A-Z0-9]+/, vendor: "Xiaomi" },
+      { pattern: /M[0-9]{4}[A-Z0-9]+/, vendor: "Xiaomi" },
       // OnePlus patterns
-      /ONEPLUS\s[A-Z0-9]+/,
-      /KB[0-9]{4}/,
+      { pattern: /ONEPLUS\s[A-Z0-9]+/, vendor: "OnePlus" },
+      { pattern: /KB[0-9]{4}/, vendor: "OnePlus" },
       // Google Pixel patterns
-      /Pixel\s[A-Z0-9]+/,
-      /Pixel\s[0-9]/,
+      { pattern: /Pixel\s[A-Z0-9]+/, vendor: "Google" },
+      { pattern: /Pixel\s[0-9]/, vendor: "Google" },
       // OPPO patterns
-      /CPH[0-9]{4}/,
-      /PEXM[0-9]{2}/,
+      { pattern: /CPH[0-9]{4}/, vendor: "OPPO" },
+      { pattern: /PEXM[0-9]{2}/, vendor: "OPPO" },
       // Vivo patterns
-      /V[0-9]{4}/,
-      /Y[0-9]{2}/,
+      { pattern: /V[0-9]{4}/, vendor: "Vivo" },
+      { pattern: /Y[0-9]{2}/, vendor: "Vivo" },
       // Realme patterns
-      /RMX[0-9]{4}/,
+      { pattern: /RMX[0-9]{4}/, vendor: "Realme" },
       // Motorola patterns
-      /moto\s[A-Z0-9]+/i,
-      /XT[0-9]{4}/,
+      { pattern: /moto\s[A-Z0-9]+/i, vendor: "Motorola" },
+      { pattern: /XT[0-9]{4}/, vendor: "Motorola" },
       // General Android pattern
-      /;\s([^;)]+)\sBuild/,
+      { pattern: /;\s([^;)]+)\sBuild/, vendor: null }
     ];
 
-    for (const pattern of patterns) {
+    for (const { pattern, vendor: patternVendor } of patterns) {
       const match = userAgent.match(pattern);
       if (match) {
         model = match[0].trim();
+        if (patternVendor) {
+          vendor = patternVendor;
+        }
         break;
       }
     }
 
-    // Try to get vendor from user agent with more specific patterns
-    const vendorPatterns = [
-      { pattern: /Samsung/i, name: "Samsung" },
-      { pattern: /Xiaomi/i, name: "Xiaomi" },
-      { pattern: /Redmi/i, name: "Xiaomi" },
-      { pattern: /POCO/i, name: "Xiaomi" },
-      { pattern: /OnePlus/i, name: "OnePlus" },
-      { pattern: /Google/i, name: "Google" },
-      { pattern: /Huawei/i, name: "Huawei" },
-      { pattern: /Honor/i, name: "Huawei" },
-      { pattern: /OPPO/i, name: "OPPO" },
-      { pattern: /Vivo/i, name: "Vivo" },
-      { pattern: /Realme/i, name: "Realme" },
-      { pattern: /Motorola/i, name: "Motorola" },
-      { pattern: /Lenovo/i, name: "Lenovo" },
-      { pattern: /Asus/i, name: "Asus" },
-      { pattern: /Sony/i, name: "Sony" },
-      { pattern: /LG/i, name: "LG" },
-      { pattern: /HTC/i, name: "HTC" },
-      { pattern: /Nokia/i, name: "Nokia" },
-      { pattern: /Infinix/i, name: "Infinix" },
-      { pattern: /Tecno/i, name: "Tecno" },
-      { pattern: /Itel/i, name: "Itel" },
-    ];
+    // If vendor is still unknown, try to get it from user agent
+    if (vendor === "Unknown") {
+      const vendorPatterns = [
+        { pattern: /Samsung/i, name: "Samsung" },
+        { pattern: /Xiaomi/i, name: "Xiaomi" },
+        { pattern: /Redmi/i, name: "Xiaomi" },
+        { pattern: /POCO/i, name: "Xiaomi" },
+        { pattern: /OnePlus/i, name: "OnePlus" },
+        { pattern: /Google/i, name: "Google" },
+        { pattern: /Huawei/i, name: "Huawei" },
+        { pattern: /Honor/i, name: "Huawei" },
+        { pattern: /OPPO/i, name: "OPPO" },
+        { pattern: /Vivo/i, name: "Vivo" },
+        { pattern: /Realme/i, name: "Realme" },
+        { pattern: /Motorola/i, name: "Motorola" },
+        { pattern: /Lenovo/i, name: "Lenovo" },
+        { pattern: /Asus/i, name: "Asus" },
+        { pattern: /Sony/i, name: "Sony" },
+        { pattern: /LG/i, name: "LG" },
+        { pattern: /HTC/i, name: "HTC" },
+        { pattern: /Nokia/i, name: "Nokia" },
+        { pattern: /Infinix/i, name: "Infinix" },
+        { pattern: /Tecno/i, name: "Tecno" },
+        { pattern: /Itel/i, name: "Itel" }
+      ];
 
-    for (const { pattern, name } of vendorPatterns) {
-      const match = userAgent.match(pattern);
-      if (match) {
-        vendor = name;
-        break;
+      for (const { pattern, name } of vendorPatterns) {
+        if (userAgent.match(pattern)) {
+          vendor = name;
+          break;
+        }
       }
     }
 
-    // If vendor is still unknown but we have a model, try to infer vendor from model
-    if (vendor === "Unknown" && model !== "Unknown") {
-      if (model.startsWith("SM-")) vendor = "Samsung";
-      else if (model.startsWith("MI") || model.startsWith("Redmi") || model.startsWith("POCO")) vendor = "Xiaomi";
-      else if (model.startsWith("ONEPLUS") || model.startsWith("KB")) vendor = "OnePlus";
-      else if (model.startsWith("Pixel")) vendor = "Google";
-      else if (model.startsWith("CPH") || model.startsWith("PEXM")) vendor = "OPPO";
-      else if (model.startsWith("V") || model.startsWith("Y")) vendor = "Vivo";
-      else if (model.startsWith("RMX")) vendor = "Realme";
-      else if (model.startsWith("moto") || model.startsWith("XT")) vendor = "Motorola";
+    // Try to get device model from build info
+    if (model === "Unknown") {
+      const buildMatch = userAgent.match(/;\s([^;)]+)\sBuild/);
+      if (buildMatch) {
+        model = buildMatch[1].trim();
+      }
     }
   }
 
@@ -180,11 +180,11 @@ export async function getTrackingData(): Promise<TrackingData> {
     // Get detailed device info
     const deviceInfo = getDetailedDeviceInfo();
     
-    // Construct device string
+    // Construct device string with more detailed information
     if (result.device.type === "mobile") {
-      data.device = `Mobile (Android ${deviceInfo.osVersion}), ${deviceInfo.vendor} ${deviceInfo.model}`;
+      data.device = `${deviceInfo.vendor} ${deviceInfo.model} (Android ${deviceInfo.osVersion})`;
     } else if (result.device.type === "tablet") {
-      data.device = `Tablet (Android ${deviceInfo.osVersion}), ${deviceInfo.vendor} ${deviceInfo.model}`;
+      data.device = `${deviceInfo.vendor} ${deviceInfo.model} (Android ${deviceInfo.osVersion})`;
     } else {
       data.device = `${result.os.name} ${result.os.version || ""}`;
     }
