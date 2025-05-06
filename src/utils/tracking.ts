@@ -1,0 +1,240 @@
+import UAParser from 'ua-parser-js';
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import axios from 'axios';
+
+export interface TrackingData {
+  timestamp: string;
+  ip_address: string;
+  coordinates: {
+    latitude: number | null;
+    longitude: number | null;
+  };
+  device: string;
+  browser: string;
+  vpn_status: string;
+  location_permission: string;
+  estimated_location: string;
+  fingerprint: string;
+  screen_resolution: string;
+  timezone: string;
+  language: string;
+  connection_type: string;
+}
+
+function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: string } {
+  const userAgent = navigator.userAgent;
+  let model = "Unknown";
+  let vendor = "Unknown";
+  let osVersion = "Unknown";
+
+  // Try to get device info from user agent
+  if (userAgent) {
+    // Get Android version
+    const androidMatch = userAgent.match(/Android\s([0-9.]+)/);
+    if (androidMatch) {
+      osVersion = androidMatch[1];
+    }
+
+    // Try different patterns for model and vendor
+    const patterns = [
+      // Samsung patterns
+      /SM-[A-Z0-9]+/,
+      /SM-[A-Z][0-9]+/,
+      /SM-[A-Z][0-9][A-Z]/,
+      /SM-[A-Z][0-9][A-Z][0-9]/,
+      // Xiaomi patterns
+      /MI\s[A-Z0-9]+/,
+      /Redmi\s[A-Z0-9]+/,
+      /POCO\s[A-Z0-9]+/,
+      /M[0-9]{4}[A-Z0-9]+/,
+      // OnePlus patterns
+      /ONEPLUS\s[A-Z0-9]+/,
+      /KB[0-9]{4}/,
+      // Google Pixel patterns
+      /Pixel\s[A-Z0-9]+/,
+      /Pixel\s[0-9]/,
+      // OPPO patterns
+      /CPH[0-9]{4}/,
+      /PEXM[0-9]{2}/,
+      // Vivo patterns
+      /V[0-9]{4}/,
+      /Y[0-9]{2}/,
+      // Realme patterns
+      /RMX[0-9]{4}/,
+      // Motorola patterns
+      /moto\s[A-Z0-9]+/i,
+      /XT[0-9]{4}/,
+      // General Android pattern
+      /;\s([^;)]+)\sBuild/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = userAgent.match(pattern);
+      if (match) {
+        model = match[0].trim();
+        break;
+      }
+    }
+
+    // Try to get vendor from user agent with more specific patterns
+    const vendorPatterns = [
+      { pattern: /Samsung/i, name: "Samsung" },
+      { pattern: /Xiaomi/i, name: "Xiaomi" },
+      { pattern: /Redmi/i, name: "Xiaomi" },
+      { pattern: /POCO/i, name: "Xiaomi" },
+      { pattern: /OnePlus/i, name: "OnePlus" },
+      { pattern: /Google/i, name: "Google" },
+      { pattern: /Huawei/i, name: "Huawei" },
+      { pattern: /Honor/i, name: "Huawei" },
+      { pattern: /OPPO/i, name: "OPPO" },
+      { pattern: /Vivo/i, name: "Vivo" },
+      { pattern: /Realme/i, name: "Realme" },
+      { pattern: /Motorola/i, name: "Motorola" },
+      { pattern: /Lenovo/i, name: "Lenovo" },
+      { pattern: /Asus/i, name: "Asus" },
+      { pattern: /Sony/i, name: "Sony" },
+      { pattern: /LG/i, name: "LG" },
+      { pattern: /HTC/i, name: "HTC" },
+      { pattern: /Nokia/i, name: "Nokia" },
+      { pattern: /Infinix/i, name: "Infinix" },
+      { pattern: /Tecno/i, name: "Tecno" },
+      { pattern: /Itel/i, name: "Itel" },
+    ];
+
+    for (const { pattern, name } of vendorPatterns) {
+      const match = userAgent.match(pattern);
+      if (match) {
+        vendor = name;
+        break;
+      }
+    }
+
+    // If vendor is still unknown but we have a model, try to infer vendor from model
+    if (vendor === "Unknown" && model !== "Unknown") {
+      if (model.startsWith("SM-")) vendor = "Samsung";
+      else if (model.startsWith("MI") || model.startsWith("Redmi") || model.startsWith("POCO")) vendor = "Xiaomi";
+      else if (model.startsWith("ONEPLUS") || model.startsWith("KB")) vendor = "OnePlus";
+      else if (model.startsWith("Pixel")) vendor = "Google";
+      else if (model.startsWith("CPH") || model.startsWith("PEXM")) vendor = "OPPO";
+      else if (model.startsWith("V") || model.startsWith("Y")) vendor = "Vivo";
+      else if (model.startsWith("RMX")) vendor = "Realme";
+      else if (model.startsWith("moto") || model.startsWith("XT")) vendor = "Motorola";
+    }
+  }
+
+  // Try to get additional info from device memory
+  if ((navigator as any).deviceMemory) {
+    model += ` (${(navigator as any).deviceMemory}GB RAM)`;
+  }
+
+  // Try to get screen info
+  if (window.screen) {
+    const width = window.screen.width;
+    const height = window.screen.height;
+    const pixelRatio = window.devicePixelRatio;
+    model += ` (${width}x${height} @${pixelRatio}x)`;
+  }
+
+  return { model, vendor, osVersion };
+}
+
+export async function getTrackingData(): Promise<TrackingData> {
+  const data: TrackingData = {
+    timestamp: new Date().toISOString(),
+    ip_address: "Unknown",
+    coordinates: { latitude: null, longitude: null },
+    device: "Unknown",
+    browser: "Unknown",
+    vpn_status: "Unknown",
+    location_permission: "Unknown",
+    estimated_location: "Unknown",
+    fingerprint: "Unknown",
+    screen_resolution: "Unknown",
+    timezone: "Unknown",
+    language: "Unknown",
+    connection_type: "Unknown"
+  };
+
+  // Get IP and VPN status
+  try {
+    const ipResponse = await axios.get('https://ipapi.co/json/');
+    const ipData = ipResponse.data;
+    data.ip_address = ipData.ip || "Unknown";
+    data.vpn_status = ipData.proxy || ipData.vpn ? "Yes" : "No";
+    data.estimated_location = ipData.city && ipData.country_name 
+      ? `${ipData.city}, ${ipData.country_name}` 
+      : "Unknown";
+  } catch (error) {
+    console.error("Failed to get IP data:", error);
+  }
+
+  // Get device and browser info
+  try {
+    const parser = new UAParser();
+    const result = parser.getResult();
+    
+    data.browser = result.browser.name && result.browser.version 
+      ? `${result.browser.name} ${result.browser.version}` 
+      : "Unknown Browser";
+    
+    // Get detailed device info
+    const deviceInfo = getDetailedDeviceInfo();
+    
+    // Construct device string
+    if (result.device.type === "mobile") {
+      data.device = `Mobile (Android ${deviceInfo.osVersion}), ${deviceInfo.vendor} ${deviceInfo.model}`;
+    } else if (result.device.type === "tablet") {
+      data.device = `Tablet (Android ${deviceInfo.osVersion}), ${deviceInfo.vendor} ${deviceInfo.model}`;
+    } else {
+      data.device = `${result.os.name} ${result.os.version || ""}`;
+    }
+
+  } catch (error) {
+    console.error("Failed to get device info:", error);
+  }
+
+  // Get fingerprint
+  try {
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    data.fingerprint = result.visitorId;
+  } catch (error) {
+    console.error("Failed to get fingerprint:", error);
+  }
+
+  // Get additional browser info
+  if (typeof window !== 'undefined') {
+    data.screen_resolution = `${window.screen.width}x${window.screen.height}`;
+    data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    data.language = navigator.language;
+    data.connection_type = (navigator as any).connection 
+      ? (navigator as any).connection.effectiveType 
+      : "Unknown";
+  }
+
+  return data;
+}
+
+export async function getGeolocation(): Promise<{latitude: number, longitude: number} | null> {
+  if (typeof window === 'undefined') return null;
+
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      () => {
+        resolve(null);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  });
+} 
