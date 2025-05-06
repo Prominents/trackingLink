@@ -42,32 +42,40 @@ function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: st
       { pattern: /SM-[A-Z][0-9]+/, vendor: "Samsung" },
       { pattern: /SM-[A-Z][0-9][A-Z]/, vendor: "Samsung" },
       { pattern: /SM-[A-Z][0-9][A-Z][0-9]/, vendor: "Samsung" },
+      { pattern: /Samsung\s([^;)]+)/i, vendor: "Samsung" },
       // Xiaomi patterns
       { pattern: /MI\s[A-Z0-9]+/, vendor: "Xiaomi" },
       { pattern: /Redmi\s[A-Z0-9]+/, vendor: "Xiaomi" },
       { pattern: /POCO\s[A-Z0-9]+/, vendor: "Xiaomi" },
       { pattern: /M[0-9]{4}[A-Z0-9]+/, vendor: "Xiaomi" },
+      { pattern: /Xiaomi\s([^;)]+)/i, vendor: "Xiaomi" },
       // OnePlus patterns
       { pattern: /ONEPLUS\s[A-Z0-9]+/, vendor: "OnePlus" },
       { pattern: /KB[0-9]{4}/, vendor: "OnePlus" },
+      { pattern: /OnePlus\s([^;)]+)/i, vendor: "OnePlus" },
       // Google Pixel patterns
       { pattern: /Pixel\s[A-Z0-9]+/, vendor: "Google" },
       { pattern: /Pixel\s[0-9]/, vendor: "Google" },
       // OPPO patterns
       { pattern: /CPH[0-9]{4}/, vendor: "OPPO" },
       { pattern: /PEXM[0-9]{2}/, vendor: "OPPO" },
+      { pattern: /OPPO\s([^;)]+)/i, vendor: "OPPO" },
       // Vivo patterns
       { pattern: /V[0-9]{4}/, vendor: "Vivo" },
       { pattern: /Y[0-9]{2}/, vendor: "Vivo" },
+      { pattern: /Vivo\s([^;)]+)/i, vendor: "Vivo" },
       // Realme patterns
       { pattern: /RMX[0-9]{4}/, vendor: "Realme" },
+      { pattern: /Realme\s([^;)]+)/i, vendor: "Realme" },
       // Motorola patterns
       { pattern: /moto\s[A-Z0-9]+/i, vendor: "Motorola" },
       { pattern: /XT[0-9]{4}/, vendor: "Motorola" },
+      { pattern: /Motorola\s([^;)]+)/i, vendor: "Motorola" },
       // General Android pattern
       { pattern: /;\s([^;)]+)\sBuild/, vendor: null }
     ];
 
+    // First try to match device model and vendor
     for (const { pattern, vendor: patternVendor } of patterns) {
       const match = userAgent.match(pattern);
       if (match) {
@@ -113,11 +121,19 @@ function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: st
       }
     }
 
-    // Try to get device model from build info
+    // Try to get device model from build info if still unknown
     if (model === "Unknown") {
       const buildMatch = userAgent.match(/;\s([^;)]+)\sBuild/);
       if (buildMatch) {
         model = buildMatch[1].trim();
+      }
+    }
+
+    // Try to get model from device name in user agent
+    if (model === "Unknown") {
+      const deviceNameMatch = userAgent.match(/;\s([^;)]+)\sMIUI/);
+      if (deviceNameMatch) {
+        model = deviceNameMatch[1].trim();
       }
     }
   }
