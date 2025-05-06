@@ -189,6 +189,21 @@ export async function getTrackingData(): Promise<TrackingData> {
       data.device = `${result.os.name} ${result.os.version || ""}`;
     }
 
+    // Get screen resolution
+    data.screen_resolution = `${window.screen.width}x${window.screen.height}`;
+    
+    // Get timezone
+    data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    // Get language
+    data.language = navigator.language;
+    
+    // Get connection type
+    if ('connection' in navigator) {
+      const connection = (navigator as any).connection;
+      data.connection_type = connection.effectiveType || "Unknown";
+    }
+
   } catch (error) {
     console.error("Failed to get device info:", error);
   }
@@ -202,39 +217,21 @@ export async function getTrackingData(): Promise<TrackingData> {
     console.error("Failed to get fingerprint:", error);
   }
 
-  // Get additional browser info
-  if (typeof window !== 'undefined') {
-    data.screen_resolution = `${window.screen.width}x${window.screen.height}`;
-    data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    data.language = navigator.language;
-    data.connection_type = (navigator as any).connection 
-      ? (navigator as any).connection.effectiveType 
-      : "Unknown";
-  }
-
   return data;
 }
 
 export async function getGeolocation(): Promise<{latitude: number, longitude: number} | null> {
-  if (typeof window === 'undefined') return null;
-
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve(null);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        });
-      },
-      () => {
-        resolve(null);
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  });
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude
+    };
+  } catch (error) {
+    console.error("Failed to get geolocation:", error);
+    return null;
+  }
 } 

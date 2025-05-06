@@ -2,6 +2,8 @@
 const nextConfig = {
   distDir: '.next',
   output: 'export',
+  basePath: '/trackingLink',
+  assetPrefix: '/trackingLink/',
   images: {
     unoptimized: true,
   },
