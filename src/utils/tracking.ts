@@ -1,6 +1,7 @@
 import UAParser from 'ua-parser-js';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import axios from 'axios';
+import DeviceDetector from 'device-detector-js';
 
 export interface TrackingData {
   timestamp: string;
@@ -27,15 +28,41 @@ function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: st
   let vendor = "Unknown";
   let osVersion = "Unknown";
 
-  // Try to get device info from user agent
-  if (userAgent) {
-    // Get Android version
-    const androidMatch = userAgent.match(/Android\s([0-9.]+)/);
-    if (androidMatch) {
-      osVersion = androidMatch[1];
-    }
+  // Initialize both parsers
+  const uaParser = new UAParser();
+  const deviceDetector = new DeviceDetector();
+  
+  // Get results from both parsers
+  const uaResult = uaParser.getResult();
+  const deviceResult = deviceDetector.parse(userAgent);
 
-    // Try different patterns for model and vendor
+  // Get OS version
+  if (uaResult.os.version) {
+    osVersion = uaResult.os.version;
+  }
+
+  // Try to get device info from device-detector-js first
+  if (deviceResult.device) {
+    if (deviceResult.device.model) {
+      model = deviceResult.device.model;
+    }
+    if (deviceResult.device.brand) {
+      vendor = deviceResult.device.brand;
+    }
+  }
+
+  // If device-detector-js didn't provide complete info, try ua-parser-js
+  if (model === "Unknown" || vendor === "Unknown") {
+    if (uaResult.device.model && model === "Unknown") {
+      model = uaResult.device.model;
+    }
+    if (uaResult.device.vendor && vendor === "Unknown") {
+      vendor = uaResult.device.vendor;
+    }
+  }
+
+  // If still unknown, try the original pattern matching as fallback
+  if (model === "Unknown" || vendor === "Unknown") {
     const patterns = [
       // Samsung patterns
       { pattern: /SM-[A-Z0-9]+/, vendor: "Samsung" },
@@ -75,65 +102,18 @@ function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: st
       { pattern: /;\s([^;)]+)\sBuild/, vendor: null }
     ];
 
-    // First try to match device model and vendor
     for (const { pattern, vendor: patternVendor } of patterns) {
       const match = userAgent.match(pattern);
       if (match) {
-        model = match[0].trim();
-        if (patternVendor) {
+        if (model === "Unknown") {
+          model = match[0].trim();
+        }
+        if (vendor === "Unknown" && patternVendor) {
           vendor = patternVendor;
         }
-        break;
-      }
-    }
-
-    // If vendor is still unknown, try to get it from user agent
-    if (vendor === "Unknown") {
-      const vendorPatterns = [
-        { pattern: /Samsung/i, name: "Samsung" },
-        { pattern: /Xiaomi/i, name: "Xiaomi" },
-        { pattern: /Redmi/i, name: "Xiaomi" },
-        { pattern: /POCO/i, name: "Xiaomi" },
-        { pattern: /OnePlus/i, name: "OnePlus" },
-        { pattern: /Google/i, name: "Google" },
-        { pattern: /Huawei/i, name: "Huawei" },
-        { pattern: /Honor/i, name: "Huawei" },
-        { pattern: /OPPO/i, name: "OPPO" },
-        { pattern: /Vivo/i, name: "Vivo" },
-        { pattern: /Realme/i, name: "Realme" },
-        { pattern: /Motorola/i, name: "Motorola" },
-        { pattern: /Lenovo/i, name: "Lenovo" },
-        { pattern: /Asus/i, name: "Asus" },
-        { pattern: /Sony/i, name: "Sony" },
-        { pattern: /LG/i, name: "LG" },
-        { pattern: /HTC/i, name: "HTC" },
-        { pattern: /Nokia/i, name: "Nokia" },
-        { pattern: /Infinix/i, name: "Infinix" },
-        { pattern: /Tecno/i, name: "Tecno" },
-        { pattern: /Itel/i, name: "Itel" }
-      ];
-
-      for (const { pattern, name } of vendorPatterns) {
-        if (userAgent.match(pattern)) {
-          vendor = name;
+        if (model !== "Unknown" && vendor !== "Unknown") {
           break;
         }
-      }
-    }
-
-    // Try to get device model from build info if still unknown
-    if (model === "Unknown") {
-      const buildMatch = userAgent.match(/;\s([^;)]+)\sBuild/);
-      if (buildMatch) {
-        model = buildMatch[1].trim();
-      }
-    }
-
-    // Try to get model from device name in user agent
-    if (model === "Unknown") {
-      const deviceNameMatch = userAgent.match(/;\s([^;)]+)\sMIUI/);
-      if (deviceNameMatch) {
-        model = deviceNameMatch[1].trim();
       }
     }
   }
