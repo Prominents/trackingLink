@@ -28,41 +28,35 @@ function getDetailedDeviceInfo(): { model: string; vendor: string; osVersion: st
   let vendor = "Unknown";
   let osVersion = "Unknown";
 
-  // Initialize both parsers
-  const uaParser = new UAParser();
-  const deviceDetector = new DeviceDetector();
-  
-  // Get results from both parsers
+  // Initialize UAParser with user agent
+  const uaParser = new UAParser(userAgent);
   const uaResult = uaParser.getResult();
-  const deviceResult = deviceDetector.parse(userAgent);
 
   // Get OS version
   if (uaResult.os.version) {
     osVersion = uaResult.os.version;
   }
 
-  // Try to get device info from device-detector-js first
-  if (deviceResult.device) {
-    if (deviceResult.device.model) {
-      model = deviceResult.device.model;
-    }
-    if (deviceResult.device.brand) {
-      vendor = deviceResult.device.brand;
+  // Try to get device info from UAParser first
+  const uaDevice = uaParser.getDevice();
+  vendor = uaDevice.vendor || "Unknown";
+  model = uaDevice.model || "Unknown";
+
+  // If UAParser didn't provide manufacturer info, try DeviceDetector
+  if (!vendor || vendor === "Unknown") {
+    const detector = new DeviceDetector();
+    const deviceResult = detector.parse(userAgent);
+    
+    if (deviceResult.device) {
+      vendor = deviceResult.device.brand || vendor;
+      if (model === "Unknown" && deviceResult.device.model) {
+        model = deviceResult.device.model;
+      }
     }
   }
 
-  // If device-detector-js didn't provide complete info, try ua-parser-js
-  if (model === "Unknown" || vendor === "Unknown") {
-    if (uaResult.device.model && model === "Unknown") {
-      model = uaResult.device.model;
-    }
-    if (uaResult.device.vendor && vendor === "Unknown") {
-      vendor = uaResult.device.vendor;
-    }
-  }
-
-  // If still unknown, try the original pattern matching as fallback
-  if (model === "Unknown" || vendor === "Unknown") {
+  // If still unknown, try pattern matching as last resort
+  if (vendor === "Unknown" || model === "Unknown") {
     const patterns = [
       // Samsung patterns
       { pattern: /SM-[A-Z0-9]+/, vendor: "Samsung" },
